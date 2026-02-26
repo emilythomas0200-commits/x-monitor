@@ -22,21 +22,22 @@ def get_latest_tweet():
     options.add_experimental_option("useAutomationExtension", False)
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     driver.get("https://x.com/iamjakestream")
-    time.sleep(8)
-    
+    driver.set_window_size(1920, 1080)
+    time.sleep(10)
+
     try:
         articles = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]')
         for article in articles:
             if "Pinned" in article.text:
                 continue
-            tweets = article.find_elements(By.XPATH, './/div[@data-testid="tweetText"]')
-            if tweets:
-                result = tweets[0].text
+            tweet_texts = article.find_elements(By.XPATH, './/div[@data-testid="tweetText"]')
+            if tweet_texts:
+                result = tweet_texts[0].text
                 driver.quit()
                 return result
     except Exception as e:
         print(f"Error: {e}")
-    
+
     driver.quit()
     return None
 
