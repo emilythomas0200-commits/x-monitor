@@ -23,10 +23,22 @@ def get_latest_tweet():
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     driver.get("https://x.com/iamjakestream")
     time.sleep(8)
-    tweets = driver.find_elements(By.XPATH, '//div[@data-testid="tweetText"]')
-    result = tweets[0].text if tweets else None
+    
+    try:
+        articles = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]')
+        for article in articles:
+            if "Pinned" in article.text:
+                continue
+            tweets = article.find_elements(By.XPATH, './/div[@data-testid="tweetText"]')
+            if tweets:
+                result = tweets[0].text
+                driver.quit()
+                return result
+    except Exception as e:
+        print(f"Error: {e}")
+    
     driver.quit()
-    return result
+    return None
 
 def send_email(tweet):
     msg = EmailMessage()
@@ -56,7 +68,9 @@ def save_last(val):
 
 print("X Monitor Running...")
 latest = get_latest_tweet()
+print(f"Latest tweet: {latest}")
 previous = load_last()
+print(f"Previous tweet: {previous}")
 
 if latest:
     if previous != latest:
