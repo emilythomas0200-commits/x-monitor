@@ -26,7 +26,7 @@ jobs:
         env:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-        run: python prototype2_____monitor.py
+        run: python prototype2_monitor.py
 
       - name: Save state
         run: |
