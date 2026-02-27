@@ -1,3 +1,4 @@
+# OSINT X Monitor - checks every 5 minutes
 name: X Monitor
 
 on:
