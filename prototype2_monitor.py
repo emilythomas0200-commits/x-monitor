@@ -1,6 +1,5 @@
 import os
 import smtplib
-import json
 import feedparser
 from email.message import EmailMessage
 from datetime import datetime, timezone, timedelta
@@ -23,9 +22,7 @@ def get_latest_tweet():
             feed = feedparser.parse(f"{instance}/{USERNAME}/rss")
             if not feed.entries:
                 continue
-            # Sort by date newest first
             entries = sorted(feed.entries, key=lambda e: parsedate_to_datetime(e.get("published", "Thu, 01 Jan 1970 00:00:00 GMT")), reverse=True)
-            # Only last 7 days
             cutoff = datetime.now(timezone.utc) - timedelta(days=7)
             entries = [e for e in entries if parsedate_to_datetime(e.get("published", "Thu, 01 Jan 1970 00:00:00 GMT")) > cutoff]
             if entries:
