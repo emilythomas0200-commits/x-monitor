@@ -1,55 +1,56 @@
 import os
 import smtplib
-import time
+import json
+import feedparser
 from email.message import EmailMessage
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
+from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime
 
 EMAIL = os.environ["EMAIL_ADDRESS"]
 APP_PASSWORD = os.environ["EMAIL_PASSWORD"]
 STATE_FILE = "last_tweet.txt"
 
+NITTER_INSTANCES = [
+    "https://nitter.net",
+    "https://nitter.privacydev.net",
+    "https://nitter.poast.org",
+]
+USERNAME = "iamjakestream"
+
 def get_latest_tweet():
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option("useAutomationExtension", False)
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.get("https://x.com/iamjakestream")
-    driver.set_window_size(1920, 1080)
-    time.sleep(10)
-
-    try:
-        articles = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]')
-        for article in articles:
-            if "Pinned" in article.text:
+    for instance in NITTER_INSTANCES:
+        try:
+            feed = feedparser.parse(f"{instance}/{USERNAME}/rss")
+            if not feed.entries:
                 continue
-            tweet_texts = article.find_elements(By.XPATH, './/div[@data-testid="tweetText"]')
-            if tweet_texts:
-                result = tweet_texts[0].text
-                driver.quit()
-                return result
-    except Exception as e:
-        print(f"Error: {e}")
-
-    driver.quit()
+            # Sort by date newest first
+            entries = sorted(feed.entries, key=lambda e: parsedate_to_datetime(e.get("published", "Thu, 01 Jan 1970 00:00:00 GMT")), reverse=True)
+            # Only last 7 days
+            cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+            entries = [e for e in entries if parsedate_to_datetime(e.get("published", "Thu, 01 Jan 1970 00:00:00 GMT")) > cutoff]
+            if entries:
+                latest = entries[0]
+                return {
+                    "id": latest.get("id", latest.get("link", "")),
+                    "text": latest.get("title", ""),
+                    "link": latest.get("link", "").replace("nitter.net", "x.com").replace("#m", ""),
+                    "published": latest.get("published", "")
+                }
+        except Exception as e:
+            print(f"Error with {instance}: {e}")
     return None
 
 def send_email(tweet):
     msg = EmailMessage()
     msg.set_content(
-        f"🚨 X Monitoring Alert!\n\n"
-        f"@iamjakestream just posted:\n\n"
-        f"{tweet}\n\n"
+        f"X Monitoring Alert!\n\n"
+        f"@{USERNAME} just posted:\n\n"
+        f"{tweet['text']}\n\n"
+        f"Link: {tweet['link']}\n"
+        f"Posted: {tweet['published']}\n\n"
         f"This is an automated OSINT monitoring alert."
     )
-    msg["Subject"] = "🚨 X Monitoring Alert - @iamjakestream posted"
+    msg["Subject"] = f"X Monitoring Alert - @{USERNAME} posted"
     msg["From"] = EMAIL
     msg["To"] = EMAIL
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
@@ -71,13 +72,13 @@ print("X Monitor Running...")
 latest = get_latest_tweet()
 print(f"Latest tweet: {latest}")
 previous = load_last()
-print(f"Previous tweet: {previous}")
+print(f"Previous tweet ID: {previous}")
 
 if latest:
-    if previous != latest:
-        print("🚨 New tweet detected!")
+    if previous != latest["id"]:
+        print("New tweet detected!")
         send_email(latest)
-        save_last(latest)
+        save_last(latest["id"])
     else:
         print("No new tweets.")
 else:
