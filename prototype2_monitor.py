@@ -25,6 +25,8 @@ def get_latest_tweet():
             entries = sorted(feed.entries, key=lambda e: parsedate_to_datetime(e.get("published", "Thu, 01 Jan 1970 00:00:00 GMT")), reverse=True)
             cutoff = datetime.now(timezone.utc) - timedelta(days=7)
             entries = [e for e in entries if parsedate_to_datetime(e.get("published", "Thu, 01 Jan 1970 00:00:00 GMT")) > cutoff]
+            # Filter out retweets, keep original posts, replies and quote tweets
+            entries = [e for e in entries if not e.get("title", "").startswith("RT by")]
             if entries:
                 latest = entries[0]
                 return {
